@@ -1,0 +1,62 @@
+import os
+import sys
+import re
+import renpy
+
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(sys.executable), "../../../"))
+
+def path_to_gamedir(basedir, name):
+    gamedir = os.path.join(BASE_PATH, "game")
+    print("RenpyPatch: set gamedir to " + gamedir)
+    return gamedir
+
+def path_to_saves(gamedir, save_directory=None):
+    if save_directory is None:
+        save_directory = renpy.config.save_directory
+        save_directory = renpy.exports.fsencode(save_directory) # type: ignore
+    savedir = os.path.join(BASE_PATH, "save", save_directory)
+    print("RenpyPatch: set savedir to " + savedir)
+    return savedir
+
+def path_to_logdir(basedir):
+    logdir = BASE_PATH
+    print("RenpyPatch: set logdir to " + logdir)
+    return logdir
+
+def predefined_searchpath(commondir):
+    __main__ = sys.modules["__main__"]
+    searchpath = __main__.__predefined_searchpath(commondir)
+
+    mod_root = os.path.join(BASE_PATH, "mod")
+
+    if os.path.isdir(mod_root):
+        def natural_sort_key(s):
+            return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)]
+
+        mod_entries = []
+        for entry in os.listdir(mod_root):
+            if entry.startswith(("!", "~")):
+                continue
+            m_game = os.path.join(mod_root, entry, "game")
+            if os.path.isdir(m_game):
+                mod_entries.append(m_game)
+
+        mod_entries.sort(key=lambda p: natural_sort_key(os.path.basename(os.path.dirname(p))), reverse=True)
+        for mod in mod_entries:
+            print("RenpyPatch: load mod " + mod)
+        searchpath = mod_entries + searchpath
+
+    return searchpath
+
+def install_all_patches():
+    import types
+
+    __main__ = sys.modules["__main__"]
+
+    for name, func in list(globals().items()):
+        if isinstance(func, types.FunctionType) and hasattr(__main__, name):
+            func_original = getattr(__main__, name)
+            setattr(__main__, "__" + name, func_original)
+            setattr(__main__, name, func)
+
+install_all_patches()
