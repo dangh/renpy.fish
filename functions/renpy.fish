@@ -58,7 +58,6 @@ function renpy_build -a v
 
         echo Downloading SDK v$V
         set -l build_dir (mktemp -d)
-        mkdir -p $build_dir/sdk
         curl --progress-bar -L "https://renpy.org/dl/$V/renpy-$V-sdk.tar.bz2" | tar -xj -C "$build_dir" --strip-components 1 || begin
             echo "Error: Failed to download SDK" >&2
             return 1
