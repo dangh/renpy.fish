@@ -14,6 +14,8 @@ def path_to_saves(gamedir, save_directory=None):
     if save_directory is None:
         save_directory = renpy.config.save_directory
         save_directory = renpy.exports.fsencode(save_directory) # type: ignore
+    if not save_directory:
+        return os.path.join(BASE_PATH, "save")
     savedir = os.path.join(BASE_PATH, "save", save_directory)
     print("RenpyPatch: set savedir to " + savedir)
     return savedir
