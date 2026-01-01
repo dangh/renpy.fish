@@ -140,7 +140,7 @@ end
 function renpy -a cmd
     switch "$cmd"
         case list
-            _renpy_version_list -l
+            _renpy_version_list -f
         case build
             _renpy_build $argv[2..]
         case launch
