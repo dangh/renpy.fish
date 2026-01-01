@@ -3,7 +3,7 @@ import sys
 import re
 import renpy
 
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(sys.executable), "../../../"))
+BASE_PATH = os.environ.get('BASE_DIR') or os.path.abspath(os.path.join(os.path.dirname(sys.executable), "../../../"))
 
 def path_to_gamedir(basedir, name):
     gamedir = os.path.join(BASE_PATH, "game")
@@ -25,40 +25,42 @@ def path_to_logdir(basedir):
     print("RenpyPatch: set logdir to " + logdir)
     return logdir
 
-def predefined_searchpath(commondir):
-    __main__ = sys.modules["__main__"]
-    searchpath = __main__.__predefined_searchpath(commondir)
+def import_all():
+    renpy.__import_all()
 
-    mod_root = os.path.join(BASE_PATH, "mod")
+    def add_mods_to_searchpath(add, seen):
+        mod_root = os.path.join(BASE_PATH, "mod")
+        if os.path.isdir(mod_root):
+            def natural_sort_key(s):
+                return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)]
 
-    if os.path.isdir(mod_root):
-        def natural_sort_key(s):
-            return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)]
+            mod_entries = []
+            for entry in os.listdir(mod_root):
+                if entry.startswith(("!", "~")):
+                    continue
+                m_game = os.path.join(mod_root, entry, "game")
+                if os.path.isdir(m_game):
+                    mod_entries.append(m_game)
 
-        mod_entries = []
-        for entry in os.listdir(mod_root):
-            if entry.startswith(("!", "~")):
-                continue
-            m_game = os.path.join(mod_root, entry, "game")
-            if os.path.isdir(m_game):
-                mod_entries.append(m_game)
+            mod_entries.sort(key=lambda p: natural_sort_key(os.path.basename(os.path.dirname(p))), reverse=True)
+            for mod in mod_entries:
+                print("RenpyPatch: load mod " + mod)
+            renpy.config.searchpath = mod_entries + renpy.config.searchpath
 
-        mod_entries.sort(key=lambda p: natural_sort_key(os.path.basename(os.path.dirname(p))), reverse=True)
-        for mod in mod_entries:
-            print("RenpyPatch: load mod " + mod)
-        searchpath = mod_entries + searchpath
+    renpy.loader.scandirfiles_callbacks.insert(0, add_mods_to_searchpath)
 
-    return searchpath
+def patch(module, method_name, func):
+    if hasattr(module, method_name):
+        func_original = getattr(module, method_name)
+        setattr(module, "__" + method_name, func_original)
+        setattr(module, method_name, func)
 
 def install_all_patches():
-    import types
+    main = sys.modules["__main__"]
+    patch(main, "path_to_gamedir", path_to_gamedir)
+    patch(main, "path_to_saves", path_to_saves)
+    patch(main, "path_to_logdir", path_to_logdir)
+    patch(renpy, "import_all", import_all)
 
-    __main__ = sys.modules["__main__"]
-
-    for name, func in list(globals().items()):
-        if isinstance(func, types.FunctionType) and hasattr(__main__, name):
-            func_original = getattr(__main__, name)
-            setattr(__main__, "__" + name, func_original)
-            setattr(__main__, name, func)
 
 install_all_patches()
