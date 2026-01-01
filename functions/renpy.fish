@@ -8,7 +8,7 @@ function _renpy_index_update
     set -l today (date "+%Y-%m-%d")
 
     set -l outdated 0
-    if not test -f "$index" -o (date -r "$index" "+%Y-%m-%d") != "$today"
+    if not test -f "$index"; or test (date -r "$index" "+%Y-%m-%d") != "$today"
         set outdated 1
     end
 
